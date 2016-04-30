@@ -44,7 +44,7 @@ class RedisClient(object):
         response = self._make_request(command)
         return response.split(self.delimiter)[1]
 
-    def set(self, key, value):
+    def set(self, key, value, **kwargs):
         """
         SET method
         :param key: The key to SET

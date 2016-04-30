@@ -7,25 +7,33 @@ class RedisCache(object):
         self.port = port
         self.redis_client = RedisClient(self.address, self.port)
 
-    def cache(self, fn):
+    def cache(self, **options):
         """
         Cache decorator
         """
-        def wrapper(*args, **kwargs):
-            fn_name = fn.__name__
-            signature = self._get_signature(args, **kwargs)
-            fn_hash = str(hash(fn_name + signature))
-            cache_request = self.redis_client.get(fn_hash)
-
-            if cache_request is '':
-                # Cache miss
-                ret = fn(*args, **kwargs)
-                self.redis_client.set(fn_hash, ret)
-            else:
-                # Cache hit
-                return cache_request
-            return ret
-        return wrapper
+        def cache_inside(fn, **kwargs):
+            def wrapper(*args, **kwargs):
+                fn_name = fn.__name__
+                signature = self._get_signature(args, **kwargs)
+                fn_hash = str(hash(fn_name + signature))
+                cache_request = self.redis_client.get(fn_hash)
+                if cache_request is '':
+                    # Cache miss
+                    print 'miss'
+                    ret = fn(*args, **kwargs)
+                    if 'expiration' in options:
+                        self.redis_client.setex(
+                            fn_hash, ret, options.get('expiration')
+                        )
+                    else:
+                        self.redis_client.set(fn_hash, ret, **options)
+                else:
+                    # Cache hit
+                    print 'hit'
+                    return cache_request
+                return ret
+            return wrapper
+        return cache_inside
 
     def _get_signature(*args, **kwargs):
         """
@@ -44,3 +52,12 @@ class RedisCache(object):
         )
 
         return ','.join(parsed)
+
+if __name__ == '__main__':
+    r = RedisCache('localhost', 6379)
+
+    @r.cache()
+    def my_method(a, b):
+        return a ** b
+
+    print my_method(11, 233)
