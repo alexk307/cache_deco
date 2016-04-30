@@ -1,4 +1,4 @@
-# redis_cache
+# redis_cache ![](https://travis-ci.org/alexk307/redis_cache.svg?branch=master)
 Implements high level function caching to Redis with a decorator
 
 
