@@ -17,7 +17,6 @@ def my_method(a, b, c):
   return a ** b ** c
 ```
 
-<<<<<<< Updated upstream
 ## Cache with an expiration
 ```python
 @r.cache(expiration=100)
