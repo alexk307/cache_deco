@@ -12,14 +12,14 @@ r = RedisCache('localhost', 6379)
 
 ## Cache indefinitely
 ```python
-@r.cache():
+@r.cache()
 def my_method(a, b, c):
   return a ** b ** c
 ```
 
 ## Cache with an expiration
 ```python
-@r.cache(expiration=100):
+@r.cache(expiration=100)
 def my_method(a, b, c):
   return a ** b ** c
 ```
