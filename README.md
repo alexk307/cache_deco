@@ -23,3 +23,6 @@ def my_method(a, b, c):
 def my_method(a, b, c):
   return a ** b ** c
 ```
+
+# Tests
+`nose`
