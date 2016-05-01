@@ -19,11 +19,16 @@ class RedisClient(object):
         :return: Response from Redis Server
         """
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((self.address, int(self.port)))
-        s.send(command)
-        response = s.recv(self.RECV_SIZE)
-        s.close()
-        return response
+        try:
+            s.connect((self.address, int(self.port)))
+            s.send(command)
+            response = s.recv(self.RECV_SIZE)
+            return response
+        except Exception as e:
+            raise RedisException(
+                'Unable to make request to Redis: %s' % str(e))
+        finally:
+            s.close()
 
     def _build_command(self, *args):
         """
@@ -64,3 +69,7 @@ class RedisClient(object):
         command = self._build_command('SETEX', key, expiration, value)
         response = self._make_request(command)
         return response.split(self.delimiter)[0]
+
+
+class RedisException(Exception):
+    pass

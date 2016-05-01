@@ -7,11 +7,53 @@ class TestRedisClient(TestCase):
     """
     Test cases for redis_client.py
     """
-
     def setUp(self):
         self.address = '8.8.8.8'
         self.port = 1234
         self.redis_client = RedisClient(self.address, self.port)
+
+    @patch('redis_cache.redis_client.socket')
+    def test_bad_send(self, mock_sock_lib):
+        """
+        Tests that an appropriate Exception is raised when sending
+        to the socket fails
+        """
+        key = 'something'
+        mock_socket = Mock()
+        mock_sock_lib.socket.return_value = mock_socket
+        mock_error_message = 'This is an error from Redis'
+        mock_socket.send.side_effect = Exception(mock_error_message)
+
+        with self.assertRaises(Exception):
+            self.redis_client.get(key)
+
+        self.assertEqual(mock_socket.recv.call_count, 0)
+        mock_socket.connect.assert_called_once_with(
+            (self.address, self.port))
+        mock_socket.send.assert_called_once_with(
+            '*2\r\n$3\r\nGET\r\n$%s\r\n%s\r\n' % (len(key), key))
+        mock_socket.close.assert_called_once_with()
+
+    @patch('redis_cache.redis_client.socket')
+    def test_bad_connection(self, mock_sock_lib):
+        """
+        Tests that an appropriate Exception is raised when connecting to
+        Redis Server fails
+        """
+        key = 'something'
+        mock_socket = Mock()
+        mock_sock_lib.socket.return_value = mock_socket
+        mock_error_message = 'This is an error from Redis'
+        mock_socket.connect.side_effect = Exception(mock_error_message)
+
+        with self.assertRaises(Exception):
+            self.redis_client.get(key)
+
+        self.assertEqual(mock_socket.recv.call_count, 0)
+        mock_socket.connect.assert_called_once_with(
+            (self.address, self.port))
+        self.assertEqual(mock_socket.send.call_count, 0)
+        mock_socket.close.assert_called_once_with()
 
     @patch('redis_cache.redis_client.socket')
     def test_get(self, mock_sock_lib):
