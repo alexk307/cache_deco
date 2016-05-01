@@ -19,7 +19,6 @@ class RedisCache(object):
                 cache_request = self.redis_client.get(fn_hash)
                 if cache_request is '':
                     # Cache miss
-                    print 'miss'
                     ret = fn(*args, **kwargs)
                     if 'expiration' in options:
                         self.redis_client.setex(
@@ -29,7 +28,6 @@ class RedisCache(object):
                         self.redis_client.set(fn_hash, ret, **options)
                 else:
                     # Cache hit
-                    print 'hit'
                     return cache_request
                 return ret
             return wrapper
@@ -50,14 +48,4 @@ class RedisCache(object):
         parsed = filter(
             lambda x: x != '', [parsed_args, parsed_kwargs]
         )
-
         return ','.join(parsed)
-
-if __name__ == '__main__':
-    r = RedisCache('localhost', 6379)
-
-    @r.cache()
-    def my_method(a, b):
-        return a ** b
-
-    print my_method(11, 233)
