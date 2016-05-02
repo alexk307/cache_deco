@@ -3,7 +3,10 @@ from unittest import TestCase
 from mock import Mock, patch
 
 
-class TestRedisClient(TestCase):
+class TestRedisCache(TestCase):
+    """
+    Test cases for redis_cache.py
+    """
 
     def setUp(self):
         self.address = '10.10.10.10'
@@ -11,6 +14,9 @@ class TestRedisClient(TestCase):
 
     @patch('redis_cache.redis_cache.RedisClient')
     def test_cache_miss(self, mock_client_object):
+        """
+        Tests a cache miss
+        """
         mock_client = Mock()
         # Simulates a cache miss
         mock_client.get.return_value = ''
@@ -35,7 +41,10 @@ class TestRedisClient(TestCase):
         self.assertEqual(function_response, test_param)
 
     @patch('redis_cache.redis_cache.RedisClient')
-    def test_cache_miss_exiration(self, mock_client_object):
+    def test_cache_miss_expiration(self, mock_client_object):
+        """
+        Tests a cache miss with an expiration given
+        """
         test_param = 'cache hit test'
         ttl = 100
         mock_client = Mock()
@@ -61,6 +70,9 @@ class TestRedisClient(TestCase):
 
     @patch('redis_cache.redis_cache.RedisClient')
     def test_cache_hit(self, mock_client_object):
+        """
+        Tests a cache hit
+        """
         test_param = 'cache hit test'
         mock_client = Mock()
         # Simulates a cache hit
