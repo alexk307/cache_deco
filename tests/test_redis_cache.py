@@ -92,3 +92,25 @@ class TestRedisCache(TestCase):
         mock_client.get.assert_called_once_with(expected_hash)
         self.assertEqual(mock_client.set.call_count, 0)
         self.assertEqual(function_response, test_param)
+
+    @patch('redis_cache.redis_cache.RedisClient')
+    def test_cache_get_tag_cache(self, mock_client_object):
+        pass
+
+    @patch('redis_cache.redis_cache.RedisClient')
+    def test_cache_reset_tag_cache(self, mock_client_object):
+        pass
+
+    @patch('redis_cache.redis_cache.RedisClient')
+    def test_cache_get_function_cache(self, mock_client_object):
+        pass
+
+    @patch('redis_cache.redis_cache.RedisClient')
+    def test_cache_reset_function_cache(self, mock_client_object):
+        pass
+
+    def test_get_function_instance_cache(self, mock_client_object):
+        raise NotImplemented()
+
+    def test_reset_function_instance_cache(self, mock_client_object):
+        raise NotImplemented()
