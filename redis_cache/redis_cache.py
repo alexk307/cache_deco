@@ -14,7 +14,19 @@ class RedisCache(object):
         def cache_inside(fn, **kwargs):
             def wrapper(*args, **kwargs):
                 fn_name = fn.__name__
-                signature = self._get_signature(args, **kwargs)
+
+                signature_generator = options.get(
+                    'signature_generator',
+                    self._get_signature
+                )
+
+                if not hasattr(signature_generator, '__call__'):
+                    raise TypeError(
+                        "signature_generator must be a callable function"
+                    )
+
+                signature = signature_generator(args, **kwargs)
+
                 fn_hash = str(hash(fn_name + signature))
                 cache_request = self.redis_client.get(fn_hash)
                 if cache_request is '':
