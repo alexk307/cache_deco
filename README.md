@@ -1,6 +1,8 @@
 # redis_cache [![Build Status](https://travis-ci.org/alexk307/redis_cache.svg?branch=master)](https://travis-ci.org/alexk307/redis_cache)
 Implements high level function caching to Redis with a decorator
 
+# Install
+`pip install redis_cache_decorator`
 
 # Usage
 
