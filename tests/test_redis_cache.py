@@ -41,6 +41,39 @@ class TestRedisCache(TestCase):
         self.assertEqual(function_response, test_param)
 
     @patch('redis_cache.redis_cache.RedisClient')
+    def test_cache_miss_kwargs(self, mock_client_object):
+        """
+        Tests a cache miss against a function with kwargs
+        """
+        mock_client = Mock()
+        # Simulates a cache miss
+        mock_client.get.return_value = ''
+        mock_client_object.return_value = mock_client
+        redis_cache = RedisCache(self.address, self.port)
+
+        # Create a function with the decorator
+        @redis_cache.cache()
+        def test_function(a, b, c=None, d=None):
+            return a
+
+        # Call that function
+        test_a = 'input'
+        test_b = 'b'
+        test_c = True
+        test_d = False
+        function_response = test_function(test_a, test_b, c=test_c, d=test_d)
+
+        mock_client_object.assert_called_once_with(self.address, self.port)
+        expected_signature = \
+            '%s,%s,c=%s,d=%s' % (test_a, test_b, str(test_c), str(test_d))
+        expected_hash = str(hash('test_function' + expected_signature))
+        mock_client.get.assert_called_once_with(expected_hash)
+        mock_client.set.assert_called_once_with(expected_hash, test_a)
+
+        # Assert that the function returns the proper data
+        self.assertEqual(function_response, test_a)
+
+    @patch('redis_cache.redis_cache.RedisClient')
     def test_cache_miss_expiration(self, mock_client_object):
         """
         Tests a cache miss with an expiration given
