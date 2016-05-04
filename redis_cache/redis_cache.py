@@ -1,4 +1,5 @@
 from redis_client import RedisClient
+import pickle
 
 
 class RedisCache(object):
@@ -17,7 +18,7 @@ class RedisCache(object):
 
                 signature_generator = options.get(
                     'signature_generator',
-                    self._get_signature
+                    self._default_signature_generator
                 )
 
                 if not hasattr(signature_generator, '__call__'):
@@ -32,20 +33,21 @@ class RedisCache(object):
                 if cache_request is '':
                     # Cache miss
                     ret = fn(*args, **kwargs)
+                    pickled_ret = pickle.dumps(ret)
                     if 'expiration' in options:
                         self.redis_client.setex(
-                            fn_hash, ret, options.get('expiration')
+                            fn_hash, pickled_ret, options.get('expiration')
                         )
                     else:
-                        self.redis_client.set(fn_hash, ret, **options)
+                        self.redis_client.set(fn_hash, pickled_ret, **options)
                 else:
                     # Cache hit
-                    return cache_request
+                    return pickle.loads(cache_request)
                 return ret
             return wrapper
         return cache_inside
 
-    def _get_signature(*args, **kwargs):
+    def _default_signature_generator(*args, **kwargs):
         """
         Gets the signature of the decorated method
         :return: arg1,...argn,kwarg1=kwarg1,...kwargn=kwargn

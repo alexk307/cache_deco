@@ -1,6 +1,8 @@
 from redis_cache.redis_cache import RedisCache
 from unittest import TestCase
 from mock import Mock, patch
+from inputs import SimpleObject
+import pickle
 
 
 class TestRedisCache(TestCase):
@@ -35,10 +37,8 @@ class TestRedisCache(TestCase):
         mock_client_object.assert_called_once_with(self.address, self.port)
         expected_hash = str(hash('test_function' + test_param))
         mock_client.get.assert_called_once_with(expected_hash)
-        mock_client.set.assert_called_once_with(expected_hash, test_param)
-
-        # Assert that the function returns the proper data
-        self.assertEqual(function_response, test_param)
+        mock_client.set.assert_called_once_with(
+            expected_hash, pickle.dumps(test_param))
 
     @patch('redis_cache.redis_cache.RedisClient')
     def test_cache_miss_kwargs(self, mock_client_object):
@@ -68,10 +68,8 @@ class TestRedisCache(TestCase):
             '%s,%s,c=%s,d=%s' % (test_a, test_b, str(test_c), str(test_d))
         expected_hash = str(hash('test_function' + expected_signature))
         mock_client.get.assert_called_once_with(expected_hash)
-        mock_client.set.assert_called_once_with(expected_hash, test_a)
-
-        # Assert that the function returns the proper data
-        self.assertEqual(function_response, test_a)
+        mock_client.set.assert_called_once_with(
+            expected_hash, pickle.dumps(test_a))
 
     @patch('redis_cache.redis_cache.RedisClient')
     def test_cache_miss_expiration(self, mock_client_object):
@@ -97,9 +95,8 @@ class TestRedisCache(TestCase):
         mock_client_object.assert_called_once_with(self.address, self.port)
         mock_client.get.assert_called_once_with(expected_hash)
         mock_client.setex.assert_called_once_with(
-            expected_hash, test_param, ttl)
+            expected_hash, pickle.dumps(test_param), ttl)
         self.assertEqual(mock_client.set.call_count, 0)
-        self.assertEqual(function_response, test_param)
 
     @patch('redis_cache.redis_cache.RedisClient')
     def test_cache_hit(self, mock_client_object):
@@ -109,7 +106,7 @@ class TestRedisCache(TestCase):
         test_param = 'cache hit test'
         mock_client = Mock()
         # Simulates a cache hit
-        mock_client.get.return_value = test_param
+        mock_client.get.return_value = pickle.dumps(test_param)
         mock_client_object.return_value = mock_client
         redis_cache = RedisCache(self.address, self.port)
 
@@ -134,7 +131,7 @@ class TestRedisCache(TestCase):
         test_param = 'cache hit test'
         mock_client = Mock()
         # Simulates a cache hit
-        mock_client.get.return_value = test_param
+        mock_client.get.return_value = pickle.dumps(test_param)
         mock_client_object.return_value = mock_client
         redis_cache = RedisCache(self.address, self.port)
 
@@ -153,3 +150,36 @@ class TestRedisCache(TestCase):
         mock_client.get.assert_called_once_with(expected_hash)
         self.assertEqual(mock_client.set.call_count, 0)
         self.assertEqual(function_response, test_param)
+
+    @patch('redis_cache.redis_cache.RedisClient')
+    def test_simple_object(self, mock_client_object):
+        """
+        Tests caching of a simple Python object with pickling
+        """
+        mock_client = Mock()
+        # Simulates a cache miss
+        mock_client.get.return_value = ''
+        mock_client_object.return_value = mock_client
+        redis_cache = RedisCache(self.address, self.port)
+
+        # Create a function with the decorator
+        simple_obj = SimpleObject('test', 42)
+        @redis_cache.cache()
+        def test_function(a):
+            return simple_obj
+
+        # Call that function
+        test_param = 'input'
+        function_response = test_function(test_param)
+        self.assertEqual(function_response, simple_obj)
+
+        mock_client_object.assert_called_once_with(self.address, self.port)
+        expected_hash = str(hash('test_function' + test_param))
+        mock_client.get.assert_called_once_with(expected_hash)
+        mock_client.set.assert_called_once_with(
+            expected_hash, pickle.dumps(simple_obj))
+
+        # Call that function, again, expecting a cache hit
+        mock_client.get.return_value = pickle.dumps(simple_obj)
+        function_response = test_function(test_param)
+        self.assertEqual(function_response, simple_obj)
