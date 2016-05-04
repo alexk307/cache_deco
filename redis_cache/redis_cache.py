@@ -26,12 +26,41 @@ class RedisCache(object):
                         )
                     else:
                         self.redis_client.set(fn_hash, ret, **options)
+
+                    # Add the hash to the fn_name and tags lookup tables
+                    self.redis_client.sadd(fn_name, fn_hash)
+
+                    if 'tags' in options:
+                        tags = options.get('tags')
+                        for tag in tags:
+                            self.redis_client.sadd(tag, fn_hash)
+
                 else:
                     # Cache hit
                     return cache_request
                 return ret
             return wrapper
         return cache_inside
+
+    def get_tag_cache(tag):
+        return self.redis_client.smembers(tag)
+
+    def reset_tag_cache(tag):
+        caches = self.redis_client.smembers(tag)
+        self.redis_client.delete(caches)
+        self.redis_client.delete(tag)
+
+    def get_function_cache(fn_name):
+        self.get_tag_cache(fn_name)
+
+    def reset_function_cache(fn_name):
+        self.reset_tag_cache(fn_name)
+
+    def get_function_instance_cache():
+        raise NotImplemented()
+
+    def reset_function_instance_cache():
+        raise NotImplemented()
 
     def _get_signature(*args, **kwargs):
         """
