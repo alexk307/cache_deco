@@ -183,3 +183,33 @@ class TestRedisCache(TestCase):
         mock_client.get.return_value = pickle.dumps(simple_obj)
         function_response = test_function(test_param)
         self.assertEqual(function_response, simple_obj)
+
+    @patch('redis_cache.redis_cache.RedisClient')
+    def test_simple_object(self, mock_client_object):
+        """
+        Tests that the cache uses an object's __str__ method to generate
+        the signature of an object if available
+        """
+        mock_client = Mock()
+        # Simulates a cache miss
+        mock_client.get.return_value = ''
+        mock_client_object.return_value = mock_client
+        redis_cache = RedisCache(self.address, self.port)
+
+        class TestClass(object):
+            def __init__(self, parameter):
+                self.parameter = parameter
+
+            @redis_cache.cache()
+            def cache_this_method(self):
+                return self.parameter
+
+            def __str__(self):
+                return "<TestClass object: parameter=%s>" % self.parameter
+
+        param = 'some_param'
+        test_class = TestClass(param)
+        test_class.cache_this_method()
+        mock_client_object.assert_called_once_with(self.address, self.port)
+        expected_hash = str(hash('cache_this_method' + str(test_class)))
+        mock_client.get.assert_called_once_with(expected_hash)
