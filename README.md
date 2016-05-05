@@ -12,8 +12,8 @@ from redis_cache.redis_cache import RedisCache
 r = RedisCache('localhost', 6379)
 ```
 
-## Cache indefinitely
-Cache the result of a function based on it's inputs and output
+## Cache
+
 ```python
 @r.cache()
 def my_method(a, b, c):
