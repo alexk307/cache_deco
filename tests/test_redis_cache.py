@@ -1,4 +1,5 @@
-from redis_cache.redis_cache import RedisCache, RedisException
+from redis_cache.redis_cache import \
+    RedisCache, RedisException, DEFAULT_EXPIRATION
 from unittest import TestCase
 from mock import Mock, patch
 from inputs import SimpleObject
@@ -37,8 +38,8 @@ class TestRedisCache(TestCase):
         mock_client_object.assert_called_once_with(self.address, self.port)
         expected_hash = str(hash('test_function' + test_param))
         mock_client.get.assert_called_once_with(expected_hash)
-        mock_client.set.assert_called_once_with(
-            expected_hash, pickle.dumps(test_param))
+        mock_client.setex.assert_called_once_with(
+            expected_hash, pickle.dumps(test_param), DEFAULT_EXPIRATION)
 
     @patch('redis_cache.redis_cache.RedisClient')
     def test_cache_miss_kwargs(self, mock_client_object):
@@ -68,8 +69,8 @@ class TestRedisCache(TestCase):
             '%s,%s,c=%s,d=%s' % (test_a, test_b, str(test_c), str(test_d))
         expected_hash = str(hash('test_function' + expected_signature))
         mock_client.get.assert_called_once_with(expected_hash)
-        mock_client.set.assert_called_once_with(
-            expected_hash, pickle.dumps(test_a))
+        mock_client.setex.assert_called_once_with(
+            expected_hash, pickle.dumps(test_a), DEFAULT_EXPIRATION)
 
     @patch('redis_cache.redis_cache.RedisClient')
     def test_cache_miss_expiration(self, mock_client_object):

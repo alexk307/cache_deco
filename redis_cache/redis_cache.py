@@ -1,6 +1,9 @@
 from redis_client import RedisClient, RedisException
 import pickle
 
+# Default expiration time for a cached object if not given in the decorator
+DEFAULT_EXPIRATION = 60
+
 
 class RedisCache(object):
     def __init__(self, address, port):
@@ -35,19 +38,15 @@ class RedisCache(object):
                         # Cache miss
                         ret = fn(*args, **kwargs)
                         pickled_ret = pickle.dumps(ret)
-                        if 'expiration' in options:
-                            self.redis_client.setex(
-                                fn_hash, pickled_ret, options.get('expiration')
-                            )
-                        else:
-                            self.redis_client.set(
-                                fn_hash, pickled_ret, **options
-                            )
+                        self.redis_client.setex(
+                            fn_hash, pickled_ret, options.get(
+                                'expiration', DEFAULT_EXPIRATION)
+                        )
                     else:
                         # Cache hit
                         return pickle.loads(cache_request)
                 except RedisException:
-                    # If we Redis fails, just execute the function as normal
+                    # If Redis fails, just execute the function as normal
                     return fn(*args, **kwargs)
                 return ret
             return wrapper
