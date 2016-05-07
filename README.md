@@ -44,7 +44,7 @@ def my_method():
 ```
 
 # Contributing
-Please do!
+Check for any open issues, or open one yourself! All contributions are appreciated.
 
 # Tests
 `nosetests`
