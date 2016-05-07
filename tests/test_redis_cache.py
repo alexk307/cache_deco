@@ -1,4 +1,4 @@
-from redis_cache.redis_cache import RedisCache
+from redis_cache.redis_cache import RedisCache, RedisException
 from unittest import TestCase
 from mock import Mock, patch
 from inputs import SimpleObject
@@ -107,6 +107,31 @@ class TestRedisCache(TestCase):
         mock_client = Mock()
         # Simulates a cache hit
         mock_client.get.return_value = pickle.dumps(test_param)
+        mock_client_object.return_value = mock_client
+        redis_cache = RedisCache(self.address, self.port)
+
+        # Create a function with the decorator
+        @redis_cache.cache()
+        def test_function(a):
+            return a
+
+        # Call that function
+        function_response = test_function(test_param)
+        expected_hash = str(hash('test_function' + test_param))
+        mock_client_object.assert_called_once_with(self.address, self.port)
+        mock_client.get.assert_called_once_with(expected_hash)
+        self.assertEqual(mock_client.set.call_count, 0)
+        self.assertEqual(function_response, test_param)
+
+    @patch('redis_cache.redis_cache.RedisClient')
+    def test_redis_failure(self, mock_client_object):
+        """
+        Tests that the function gets ran as expected when Redis fails
+        """
+        test_param = 'cache hit test'
+        mock_client = Mock()
+        # Simulates a cache hit
+        mock_client.get.side_effect = RedisException
         mock_client_object.return_value = mock_client
         redis_cache = RedisCache(self.address, self.port)
 

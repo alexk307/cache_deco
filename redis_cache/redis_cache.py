@@ -1,4 +1,4 @@
-from redis_client import RedisClient
+from redis_client import RedisClient, RedisException
 import pickle
 
 
@@ -29,20 +29,26 @@ class RedisCache(object):
                 signature = signature_generator(args, **kwargs)
 
                 fn_hash = str(hash(fn_name + signature))
-                cache_request = self.redis_client.get(fn_hash)
-                if cache_request is '':
-                    # Cache miss
-                    ret = fn(*args, **kwargs)
-                    pickled_ret = pickle.dumps(ret)
-                    if 'expiration' in options:
-                        self.redis_client.setex(
-                            fn_hash, pickled_ret, options.get('expiration')
-                        )
+                try:
+                    cache_request = self.redis_client.get(fn_hash)
+                    if cache_request is '':
+                        # Cache miss
+                        ret = fn(*args, **kwargs)
+                        pickled_ret = pickle.dumps(ret)
+                        if 'expiration' in options:
+                            self.redis_client.setex(
+                                fn_hash, pickled_ret, options.get('expiration')
+                            )
+                        else:
+                            self.redis_client.set(
+                                fn_hash, pickled_ret, **options
+                            )
                     else:
-                        self.redis_client.set(fn_hash, pickled_ret, **options)
-                else:
-                    # Cache hit
-                    return pickle.loads(cache_request)
+                        # Cache hit
+                        return pickle.loads(cache_request)
+                except RedisException:
+                    # If we Redis fails, just execute the function as normal
+                    return fn(*args, **kwargs)
                 return ret
             return wrapper
         return cache_inside
