@@ -177,6 +177,14 @@ class TestRedisCache(TestCase):
         self.assertEqual(mock_client.set.call_count, 0)
         self.assertEqual(function_response, test_param)
 
+        # Test that the signature_generator must be callable
+        @redis_cache.cache(signature_generator='not callable')
+        def test_function_not_callable(a):
+            return a
+
+        with self.assertRaises(TypeError):
+            test_function_not_callable(test_param)
+
     @patch('redis_cache.redis_cache.RedisClient')
     def test_simple_object(self, mock_client_object):
         """
