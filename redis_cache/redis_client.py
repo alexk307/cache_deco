@@ -22,13 +22,21 @@ class RedisClient(object):
         try:
             s.connect((self.address, int(self.port)))
             s.send(command)
-            response = s.recv(self.RECV_SIZE)
+            response = self._recv_data(s)
             return response
         except Exception as e:
             raise RedisException(
                 'Unable to make request to Redis: %s' % str(e))
         finally:
             s.close()
+
+    def _recv_data(self, sock):
+        data = ""
+        received = None
+        while received != "":
+            received = sock.recv(self.RECV_SIZE)
+            data += received
+        return data
 
     def _build_command(self, *args):
         """
