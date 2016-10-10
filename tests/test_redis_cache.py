@@ -32,12 +32,15 @@ class TestRedisCache(TestCase):
         def test_function(a):
             return a
 
+        def cache_key_for(*args, **kwargs):
+            return redis_cache._generate_cache_key(test_function, args, kwargs)
+
         # Call that function
         test_param = 'input'
         function_response = test_function(test_param)
 
         mock_client_object.assert_called_once_with(self.address, self.port)
-        expected_hash = str(hash('test_function' + test_param))
+        expected_hash = cache_key_for(test_param)
         mock_client.get.assert_called_once_with(expected_hash)
         mock_client.setex.assert_called_once_with(
             expected_hash, pickle.dumps(test_param), DEFAULT_EXPIRATION)
@@ -58,6 +61,9 @@ class TestRedisCache(TestCase):
         def test_function(a, b, c=None, d=None):
             return a
 
+        def cache_key_for(*args, **kwargs):
+            return redis_cache._generate_cache_key(test_function, args, kwargs)
+
         # Call that function
         test_a = 'input'
         test_b = 'b'
@@ -66,9 +72,7 @@ class TestRedisCache(TestCase):
         function_response = test_function(test_a, test_b, c=test_c, d=test_d)
 
         mock_client_object.assert_called_once_with(self.address, self.port)
-        expected_signature = \
-            '%s,%s,c=%s,d=%s' % (test_a, test_b, str(test_c), str(test_d))
-        expected_hash = str(hash('test_function' + expected_signature))
+        expected_hash = cache_key_for(test_a, test_b, c=test_c, d=test_d)
         mock_client.get.assert_called_once_with(expected_hash)
         mock_client.setex.assert_called_once_with(
             expected_hash, pickle.dumps(test_a), DEFAULT_EXPIRATION)
@@ -91,9 +95,12 @@ class TestRedisCache(TestCase):
         def test_function(a):
             return a
 
+        def cache_key_for(*args, **kwargs):
+            return redis_cache._generate_cache_key(test_function, args, kwargs)
+
         # Call that function
         function_response = test_function(test_param)
-        expected_hash = str(hash('test_function' + test_param))
+        expected_hash = cache_key_for(test_param)
         mock_client_object.assert_called_once_with(self.address, self.port)
         mock_client.get.assert_called_once_with(expected_hash)
         mock_client.setex.assert_called_once_with(
@@ -117,9 +124,12 @@ class TestRedisCache(TestCase):
         def test_function(a):
             return a
 
+        def cache_key_for(*args, **kwargs):
+            return redis_cache._generate_cache_key(test_function, args, kwargs)
+
         # Call that function
         function_response = test_function(test_param)
-        expected_hash = str(hash('test_function' + test_param))
+        expected_hash = cache_key_for(test_param)
         mock_client_object.assert_called_once_with(self.address, self.port)
         mock_client.get.assert_called_once_with(expected_hash)
         self.assertEqual(mock_client.set.call_count, 0)
@@ -142,9 +152,12 @@ class TestRedisCache(TestCase):
         def test_function(a):
             return a
 
+        def cache_key_for(*args, **kwargs):
+            return redis_cache._generate_cache_key(test_function, args, kwargs)
+
         # Call that function
         function_response = test_function(test_param)
-        expected_hash = str(hash('test_function' + test_param))
+        expected_hash = cache_key_for(test_param)
         mock_client_object.assert_called_once_with(self.address, self.port)
         mock_client.get.assert_called_once_with(expected_hash)
         self.assertEqual(mock_client.set.call_count, 0)
@@ -170,9 +183,14 @@ class TestRedisCache(TestCase):
         def test_function(a):
             return a
 
+        def cache_key_for(*args, **kwargs):
+            return redis_cache._generate_cache_key(
+                test_function, args, kwargs,
+                signature_generator=test_signature_builder)
+
         # Call that function
         function_response = test_function(test_param)
-        expected_hash = str(hash('test_function'+test_signature_builder()))
+        expected_hash = cache_key_for(test_param)
         mock_client_object.assert_called_once_with(self.address, self.port)
         mock_client.get.assert_called_once_with(expected_hash)
         self.assertEqual(mock_client.set.call_count, 0)
@@ -203,13 +221,16 @@ class TestRedisCache(TestCase):
         def test_function(a):
             return simple_obj
 
+        def cache_key_for(*args, **kwargs):
+            return redis_cache._generate_cache_key(test_function, args, kwargs)
+
         # Call that function
         test_param = 'input'
         function_response = test_function(test_param)
         self.assertEqual(function_response, simple_obj)
 
         mock_client_object.assert_called_once_with(self.address, self.port)
-        expected_hash = str(hash('test_function' + test_param))
+        expected_hash = cache_key_for(test_param)
         mock_client.get.assert_called_once_with(expected_hash)
         mock_client.set.assert_called_once_with(
             expected_hash, pickle.dumps(simple_obj))
@@ -242,11 +263,16 @@ class TestRedisCache(TestCase):
             def __str__(self):
                 return "<TestClass object: parameter=%s>" % self.parameter
 
+        def cache_key_for(arg):
+            fn = TestClass.cache_this_method
+            args = [TestClass(arg)]
+            return redis_cache._generate_cache_key(fn, args)
+
         param = 'some_param'
         test_class = TestClass(param)
         test_class.cache_this_method()
         mock_client_object.assert_called_once_with(self.address, self.port)
-        expected_hash = str(hash('cache_this_method' + str(test_class)))
+        expected_hash = cache_key_for(param)
         mock_client.get.assert_called_once_with(expected_hash)
 
     @patch('redis_cache.redis_cache.RedisClient')
@@ -314,20 +340,25 @@ class TestRedisCache(TestCase):
         redis_cache = RedisCache(self.address, self.port)
 
         class TestClass(object):
-            def __init__(self):
-                self.state = None
+            def __init__(self, state=None):
+                self.state = state
 
             @redis_cache.cache()
             def some_method(self):
                 return self.state
 
+        def cache_key_for(state):
+            fn = TestClass.some_method
+            args = [TestClass(state)]
+            return redis_cache._generate_cache_key(fn, args)
+
         state1 = 'some simple type state'
         state2 = SimpleObject('some complex type state', 123)
 
         def cache_get(cache_key):
-            if cache_key == '-5024234577788600450':
+            if cache_key == cache_key_for(state1):
                 return pickle.dumps(state1)
-            if cache_key == '3969794880762558013':
+            if cache_key == cache_key_for(state2):
                 return pickle.dumps(state2)
             raise ValueError('called cache for hash: {}'.format(cache_key))
 

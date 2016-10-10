@@ -1,4 +1,5 @@
 from redis_client import RedisClient, RedisException
+import functools
 import pickle
 
 # Default expiration time for a cached object if not given in the decorator
@@ -16,22 +17,9 @@ class RedisCache(object):
         Cache decorator
         """
         def cache_inside(fn, **kwargs):
+            @functools.wraps(fn)
             def wrapper(*args, **kwargs):
-                fn_name = fn.__name__
-
-                signature_generator = options.get(
-                    'signature_generator',
-                    self._default_signature_generator
-                )
-
-                if not hasattr(signature_generator, '__call__'):
-                    raise TypeError(
-                        "signature_generator must be a callable function"
-                    )
-
-                signature = signature_generator(args, **kwargs)
-
-                fn_hash = str(hash(fn_name + signature))
+                fn_hash = self._generate_cache_key(fn, args, kwargs, **options)
                 try:
                     cache_request = self.redis_client.get(fn_hash)
                     if cache_request is '':
@@ -68,6 +56,22 @@ class RedisCache(object):
             lambda x: x != '', [parsed_args, parsed_kwargs]
         )
         return ','.join(parsed)
+
+    def _generate_cache_key(self, fn, fn_args=None, fn_kwargs=None, **options):
+        signature_generator = options.get(
+            'signature_generator',
+            self._default_signature_generator)
+
+        if not hasattr(signature_generator, '__call__'):
+            raise TypeError(
+                "signature_generator must be a callable function")
+
+        fn_args = fn_args or []
+        fn_kwargs = fn_kwargs or {}
+        fn_name = fn.__name__
+        signature = signature_generator(fn_args, **fn_kwargs)
+        fn_hash = str(hash(fn_name + signature))
+        return fn_hash
 
 
 def _argument_to_string(arg):
