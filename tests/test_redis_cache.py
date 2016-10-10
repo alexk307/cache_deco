@@ -1,8 +1,10 @@
 from redis_cache.redis_cache import \
     RedisCache, RedisException, DEFAULT_EXPIRATION
+from fakes import FakeRedisClient
 from unittest import TestCase
 from mock import Mock, patch
 from inputs import SimpleObject
+import collections
 import pickle
 
 
@@ -247,3 +249,100 @@ class TestRedisCache(TestCase):
         mock_client_object.assert_called_once_with(self.address, self.port)
         expected_hash = str(hash('cache_this_method' + str(test_class)))
         mock_client.get.assert_called_once_with(expected_hash)
+
+    def test_cache_on_class_without_str_for_function_with_simple_args(self):
+        """
+        Tests a cache hit when invoking a method that takes a primitive type as
+        argument on an object that does not implement a __str__ method
+        """
+        redis_cache = RedisCache(self.address, self.port)
+        redis_cache.redis_client = FakeRedisClient()
+
+        class TestClass(object):
+            def __init__(self):
+                self.call_count = collections.defaultdict(int)
+
+            @redis_cache.cache()
+            def echo(self, parameter):
+                self.call_count[parameter] += 1
+                return parameter
+
+        primitive_argument = 'cache hit test'
+
+        instance1 = TestClass()
+        instance2 = TestClass()
+        instance3 = TestClass()
+
+        value1 = instance1.echo(primitive_argument)
+        value2 = instance2.echo(primitive_argument)
+        value3 = instance3.echo(primitive_argument)
+
+        self.assertTrue(value1 == value2 == value3 == primitive_argument)
+        self.assertEqual(instance1.call_count[primitive_argument], 1)
+        self.assertEqual(instance2.call_count[primitive_argument], 0)
+        self.assertEqual(instance3.call_count[primitive_argument], 0)
+
+    def test_cache_on_class_without_str_for_function_with_complex_args(self):
+        """
+        Tests a cache hit when invoking a method that takes a complex type as
+        argument on an object that does not implement a __str__ method
+        """
+        redis_cache = RedisCache(self.address, self.port)
+        redis_cache.redis_client = FakeRedisClient()
+
+        class TestClass(object):
+            def __init__(self):
+                self.some_method_call_count = collections.defaultdict(int)
+
+            @redis_cache.cache()
+            def some_method(self, parameter):
+                self.some_method_call_count[parameter] += 1
+                return parameter
+
+        complex_argument = SimpleObject('test', 42)
+
+        instance1 = TestClass()
+        instance2 = TestClass()
+        instance3 = TestClass()
+
+        value1 = instance1.some_method(complex_argument)
+        value2 = instance2.some_method(complex_argument)
+        value3 = instance3.some_method(complex_argument)
+
+        self.assertTrue(value1 == value2 == value3 == complex_argument)
+        self.assertEqual(instance1.some_method_call_count[complex_argument], 1)
+        self.assertEqual(instance2.some_method_call_count[complex_argument], 0)
+        self.assertEqual(instance3.some_method_call_count[complex_argument], 0)
+
+    def test_cache_on_stateful_class_without_str(self):
+        """
+        Tests a cache hit when invoking a method on a stateful object.
+        """
+        redis_cache = RedisCache(self.address, self.port)
+        redis_cache.redis_client = FakeRedisClient()
+
+        class TestClass(object):
+            def __init__(self, state):
+                self.state = state
+
+            @redis_cache.cache()
+            def some_method(self):
+                return self.state
+
+        state1 = 'some state'
+        state2 = SimpleObject('foo', 2)
+
+        state1_instance1 = TestClass(state1)
+        state1_instance2 = TestClass(state1)
+        state2_instance1 = TestClass(state2)
+        state2_instance2 = TestClass(state2)
+
+        value1 = state1_instance1.some_method()
+        value2 = state1_instance1.some_method()
+        value3 = state1_instance2.some_method()
+        value4 = state2_instance1.some_method()
+        value5 = state2_instance2.some_method()
+        value6 = state2_instance1.some_method()
+
+        self.assertTrue(value1 == value2 == value3 == state1)
+        self.assertTrue(value4 == value5 == value6 == state2)

@@ -58,7 +58,7 @@ class RedisCache(object):
         :return: arg1,...argn,kwarg1=kwarg1,...kwargn=kwargn
         """
         # Join regular arguments together with commas
-        parsed_args = ",".join(map(lambda x: str(x), args[1]))
+        parsed_args = ",".join(map(_argument_to_string, args[1]))
         # Join keyword arguments together with `=` and commas
         parsed_kwargs = ",".join(
             map(lambda x: '%s=%s' % (x, str(kwargs[x])), kwargs)
@@ -68,3 +68,25 @@ class RedisCache(object):
             lambda x: x != '', [parsed_args, parsed_kwargs]
         )
         return ','.join(parsed)
+
+
+def _argument_to_string(arg):
+    if arg.__class__.__module__ == '__builtin__':
+        return str(arg)
+
+    # for backwards-compatibility: if the object defines a custom __str__ method
+    # use it instead of the default approach based on the class-name
+    string_representation = str(arg)
+    if string_representation != object.__str__(arg):
+        return string_representation
+
+    try:
+        instance_namespace = arg.__class__.__name__
+        instance_state = sorted((field, _argument_to_string(value))
+                                for field, value in vars(arg).items())
+        return '{}_{}'.format(instance_namespace, instance_state)
+
+    except TypeError:
+        # some non-primitive types (e.g., defaultdict) don't have a __dict__ so
+        # we need to have a fall-back
+        return str(arg)
