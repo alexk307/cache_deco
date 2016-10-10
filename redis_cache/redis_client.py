@@ -31,11 +31,12 @@ class RedisClient(object):
             s.close()
 
     def _recv_data(self, sock):
-        data = ""
-        received = None
-        while received != "":
+        data = ''
+        while True:
             received = sock.recv(self.RECV_SIZE)
             data += received
+            if len(received) <= self.RECV_SIZE:
+                break
         return data
 
     def _build_command(self, *args):
