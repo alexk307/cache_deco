@@ -1,6 +1,5 @@
 from redis_cache.redis_cache import \
     RedisCache, RedisException, DEFAULT_EXPIRATION
-from fakes import FakeRedisClient
 from unittest import TestCase
 from mock import Mock, patch
 from inputs import SimpleObject
@@ -250,13 +249,17 @@ class TestRedisCache(TestCase):
         expected_hash = str(hash('cache_this_method' + str(test_class)))
         mock_client.get.assert_called_once_with(expected_hash)
 
-    def test_cache_on_class_without_str_for_function_with_simple_args(self):
+    @patch('redis_cache.redis_cache.RedisClient')
+    def test_cache_on_class_without_str(self, mock_client_object):
         """
-        Tests a cache hit when invoking a method that takes a primitive type as
-        argument on an object that does not implement a __str__ method
+        Tests that the cache gets populated when invoking a method that takes a
+        primitive type as argument on an object that does not implement a custom
+        __str__ method.
         """
+
+        mock_client = Mock()
+        mock_client_object.return_value = mock_client
         redis_cache = RedisCache(self.address, self.port)
-        redis_cache.redis_client = FakeRedisClient()
 
         class TestClass(object):
             def __init__(self):
@@ -268,81 +271,75 @@ class TestRedisCache(TestCase):
                 return parameter
 
         primitive_argument = 'cache hit test'
+        complex_argument = SimpleObject('test', 42)
 
-        instance1 = TestClass()
-        instance2 = TestClass()
-        instance3 = TestClass()
+        for argument in primitive_argument, complex_argument:
+            # on the first call, the cache is empty
+            instance = TestClass()
+            mock_client.get.return_value = ''
+            instance1_return1 = instance.echo(argument)
 
-        value1 = instance1.echo(primitive_argument)
-        value2 = instance2.echo(primitive_argument)
-        value3 = instance3.echo(primitive_argument)
+            # after the first call, the cache is set, i.e. all the subsequent
+            # calls will return the previously computed value from cache
+            mock_client.get.return_value = pickle.dumps(argument)
+            instance1_return2 = instance.echo(argument)
+            instance1_return3 = instance.echo(argument)
+            self.assertEqual(instance1_return1, argument)
+            self.assertEqual(instance1_return2, argument)
+            self.assertEqual(instance1_return3, argument)
+            self.assertEqual(instance.call_count[argument], 1)
 
-        self.assertTrue(value1 == value2 == value3 == primitive_argument)
-        self.assertEqual(instance1.call_count[primitive_argument], 1)
-        self.assertEqual(instance2.call_count[primitive_argument], 0)
-        self.assertEqual(instance3.call_count[primitive_argument], 0)
+            # the cache should also be hit for calls to the same method on a new
+            # but equivalent object
+            equivalent_instance = TestClass()
+            instance2_return1 = equivalent_instance.echo(argument)
+            instance2_return2 = equivalent_instance.echo(argument)
+            self.assertEqual(instance2_return1, argument)
+            self.assertEqual(instance2_return2, argument)
+            self.assertEqual(equivalent_instance.call_count[argument], 0)
 
-    def test_cache_on_class_without_str_for_function_with_complex_args(self):
+    @patch('redis_cache.redis_cache.RedisClient')
+    def test_cache_on_stateful_class_without_str(self, mock_client_object):
         """
-        Tests a cache hit when invoking a method that takes a complex type as
-        argument on an object that does not implement a __str__ method
+        Tests that the cache gets populated when invoking a method on an object
+        that is stateful and that doesn't implement a custom __str__ method.
+
+        Some object are stateful, i.e. their methods will return different
+        values at different times in the object's life-cycle. When the state of
+        the object changes, we need to make sure that the cache doesn't return
+        values for the previous state of the object.
         """
+        mock_client = Mock()
+        mock_client_object.return_value = mock_client
         redis_cache = RedisCache(self.address, self.port)
-        redis_cache.redis_client = FakeRedisClient()
 
         class TestClass(object):
             def __init__(self):
-                self.some_method_call_count = collections.defaultdict(int)
-
-            @redis_cache.cache()
-            def some_method(self, parameter):
-                self.some_method_call_count[parameter] += 1
-                return parameter
-
-        complex_argument = SimpleObject('test', 42)
-
-        instance1 = TestClass()
-        instance2 = TestClass()
-        instance3 = TestClass()
-
-        value1 = instance1.some_method(complex_argument)
-        value2 = instance2.some_method(complex_argument)
-        value3 = instance3.some_method(complex_argument)
-
-        self.assertTrue(value1 == value2 == value3 == complex_argument)
-        self.assertEqual(instance1.some_method_call_count[complex_argument], 1)
-        self.assertEqual(instance2.some_method_call_count[complex_argument], 0)
-        self.assertEqual(instance3.some_method_call_count[complex_argument], 0)
-
-    def test_cache_on_stateful_class_without_str(self):
-        """
-        Tests a cache hit when invoking a method on a stateful object.
-        """
-        redis_cache = RedisCache(self.address, self.port)
-        redis_cache.redis_client = FakeRedisClient()
-
-        class TestClass(object):
-            def __init__(self, state):
-                self.state = state
+                self.state = None
 
             @redis_cache.cache()
             def some_method(self):
                 return self.state
 
-        state1 = 'some state'
-        state2 = SimpleObject('foo', 2)
+        state1 = 'some simple type state'
+        state2 = SimpleObject('some complex type state', 123)
 
-        state1_instance1 = TestClass(state1)
-        state1_instance2 = TestClass(state1)
-        state2_instance1 = TestClass(state2)
-        state2_instance2 = TestClass(state2)
+        def cache_get(cache_key):
+            if cache_key == '-5024234577788600450':
+                return pickle.dumps(state1)
+            if cache_key == '3969794880762558013':
+                return pickle.dumps(state2)
+            raise ValueError('called cache for hash: {}'.format(cache_key))
 
-        value1 = state1_instance1.some_method()
-        value2 = state1_instance1.some_method()
-        value3 = state1_instance2.some_method()
-        value4 = state2_instance1.some_method()
-        value5 = state2_instance2.some_method()
-        value6 = state2_instance1.some_method()
+        mock_client.get.side_effect = cache_get
 
-        self.assertTrue(value1 == value2 == value3 == state1)
-        self.assertTrue(value4 == value5 == value6 == state2)
+        # call the object in some initial state
+        stateful_instance = TestClass()
+        stateful_instance.state = state1
+        return_value_for_state1 = stateful_instance.some_method()
+
+        # mutate the state of the object and make sure that we don't hit the
+        # cache for the previous state
+        stateful_instance.state = state2
+        return_value_for_state2 = stateful_instance.some_method()
+        self.assertNotEqual(return_value_for_state1, return_value_for_state2)
