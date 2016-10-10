@@ -80,13 +80,19 @@ def _argument_to_string(arg):
     if string_representation != object.__str__(arg):
         return string_representation
 
+    instance_namespace = arg.__class__.__name__
     try:
-        instance_namespace = arg.__class__.__name__
+        # if the object has state, also include that in the cache key so that if
+        # the object's state changes, we don't hit the cache for the old state
+        # and risk returning an out-of-date value
+        # note that we need to do this recursively in case the object's state is
+        # made up of other stateful objects which could also change and require
+        # us to invalidate the cache
         instance_state = sorted((field, _argument_to_string(value))
                                 for field, value in vars(arg).items())
-        return '{}_{}'.format(instance_namespace, instance_state)
-
     except TypeError:
         # some non-primitive types (e.g., defaultdict) don't have a __dict__ so
-        # we need to have a fall-back
-        return str(arg)
+        # we need to have a fall-back for the vars call above
+        instance_state = string_representation
+
+    return '{}_{}'.format(instance_namespace, instance_state)
