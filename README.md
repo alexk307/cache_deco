@@ -49,6 +49,3 @@ Check for any open issues, or open one yourself! All contributions are appreciat
 
 # Tests
 `nosetests`
-
-# Note
-When implementing the caching decorator on methods with objects as parameters, please be sure to override the `__str__` method on that object. The default behavior for most objects in Python is to return a string such as `<Object instance at 0x12345678>`. Since this is in the signature of the function, it will cache using that address in memory and will result in cache misses everytime that object is changed. This is especially apparent while caching class methods since the first paramter is always the object itself (`self`).
