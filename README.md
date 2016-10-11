@@ -44,6 +44,28 @@ def my_method():
   ...
 ```
 
+`invalidator`: Boolean to determine whether or not to return a cache invalidating function
+
+e.g.
+```python
+@r.cache(invalidator=True)
+def my_method():
+    ...
+```
+
+Now when you call `my_method`, it will return two values. The first value is the cached return if a cache hit occurs, otherwise it's the return value from executing the function.
+The second value is a callable function to invalidate the cache.
+
+```python
+return_value, invalidator = my_method()
+```
+
+To invalidate the cached return, just call the invalidator:
+
+```python
+invalidator()
+```
+
 # Contributing
 Check for any open issues, or open one yourself! All contributions are appreciated.
 
