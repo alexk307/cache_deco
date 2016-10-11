@@ -54,6 +54,11 @@ class RedisCache(object):
         return cache_inside
 
     def invalidate_cache(self, cache_key):
+        """
+        Creates the invalidator to be returned when requested to invalidate
+        the cache
+        :param cache_key: The cache key to invalidate
+        """
         self.redis_client.delete(cache_key)
 
     def _default_signature_generator(*args, **kwargs):

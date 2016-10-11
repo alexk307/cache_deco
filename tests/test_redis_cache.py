@@ -57,7 +57,7 @@ class TestRedisCache(TestCase):
         redis_cache = RedisCache(self.address, self.port)
 
         # Create a function with the decorator
-        @redis_cache.cache()
+        @redis_cache.cache(invalidator=True)
         def test_function(a, b, c=None, d=None):
             return a
 
@@ -69,13 +69,18 @@ class TestRedisCache(TestCase):
         test_b = 'b'
         test_c = True
         test_d = False
-        function_response = test_function(test_a, test_b, c=test_c, d=test_d)
+        function_response, invalidator \
+            = test_function(test_a, test_b, c=test_c, d=test_d)
 
         mock_client_object.assert_called_once_with(self.address, self.port)
         expected_hash = cache_key_for(test_a, test_b, c=test_c, d=test_d)
         mock_client.get.assert_called_once_with(expected_hash)
         mock_client.setex.assert_called_once_with(
             expected_hash, pickle.dumps(test_a), DEFAULT_EXPIRATION)
+
+        # Call the cache invalidator
+        invalidator()
+        mock_client.delete.assert_called_once_with(expected_hash)
 
     @patch('redis_cache.redis_cache.RedisClient')
     def test_cache_miss_expiration(self, mock_client_object):
@@ -184,7 +189,7 @@ class TestRedisCache(TestCase):
         redis_cache = RedisCache(self.address, self.port)
 
         # Create a function with the decorator
-        @redis_cache.cache()
+        @redis_cache.cache(invalidator=True)
         def test_function(a):
             return a
 
@@ -192,12 +197,13 @@ class TestRedisCache(TestCase):
             return redis_cache._generate_cache_key(test_function, args, kwargs)
 
         # Call that function
-        function_response = test_function(test_param)
+        function_response, invalidator = test_function(test_param)
         expected_hash = cache_key_for(test_param)
         mock_client_object.assert_called_once_with(self.address, self.port)
         mock_client.get.assert_called_once_with(expected_hash)
         self.assertEqual(mock_client.set.call_count, 0)
         self.assertEqual(function_response, test_param)
+        self.assertIsNone(invalidator)
 
     @patch('redis_cache.redis_cache.RedisClient')
     def test_cache_custom_signature(self, mock_client_object):
