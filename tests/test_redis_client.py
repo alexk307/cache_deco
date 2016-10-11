@@ -146,6 +146,29 @@ class TestRedisClient(TestCase):
         mock_socket.close.assert_called_once_with()
 
     @patch('redis_cache.redis_client.socket')
+    def test_delete(self, mock_sock_lib):
+        """
+        Tests DELETE
+        """
+        key = 'something'
+        value = 'something_else'
+        mock_socket = Mock()
+        mock_sock_lib.socket.return_value = mock_socket
+
+        mock_socket.recv.return_value = ':%s\r\n' % value
+
+        cache_response = self.redis_client.delete(key)
+        self.assertEqual(cache_response, ':%s' % value)
+
+        mock_socket.recv.assert_called_with(self.redis_client.RECV_SIZE)
+        self.assertEqual(mock_socket.recv.call_count, 1)
+        mock_socket.connect.assert_called_once_with(
+            (self.address, self.port))
+        mock_socket.send.assert_called_once_with(
+            '*2\r\n$3\r\nDEL\r\n$9\r\n%s\r\n' % key)
+        mock_socket.close.assert_called_once_with()
+
+    @patch('redis_cache.redis_client.socket')
     def test_setex(self, mock_sock_lib):
         """
         Tests SETEX
