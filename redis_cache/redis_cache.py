@@ -16,6 +16,7 @@ class RedisCache(object):
         """
         Cache decorator
         """
+        return_invalidator = 'invalidator' in options
         def cache_inside(fn, **kwargs):
             @functools.wraps(fn)
             def wrapper(*args, **kwargs):
@@ -32,13 +33,28 @@ class RedisCache(object):
                         )
                     else:
                         # Cache hit
-                        return pickle.loads(cache_request)
+                        cache_hit = pickle.loads(cache_request)
+                        if return_invalidator:
+                            return cache_hit, functools.partial(
+                                self.invalidate_cache, fn_hash)
+                        else:
+                            return cache_hit
                 except RedisException:
                     # If Redis fails, just execute the function as normal
-                    return fn(*args, **kwargs)
-                return ret
+                    if return_invalidator:
+                        return fn(*args, **kwargs), None
+                    else:
+                        return fn(*args, **kwargs)
+                if return_invalidator:
+                    return \
+                        ret, functools.partial(self.invalidate_cache, fn_hash)
+                else:
+                    return ret
             return wrapper
         return cache_inside
+
+    def invalidate_cache(self, cache_key):
+        self.redis_client.delete(cache_key)
 
     def _default_signature_generator(*args, **kwargs):
         """

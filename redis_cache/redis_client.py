@@ -49,6 +49,15 @@ class RedisClient(object):
             command_args.extend(['$%s' % len(str(arg)), str(arg)])
         return self.delimiter.join(command_args) + self.delimiter
 
+    def delete(self, key):
+        """
+        DEL method
+        :param key: The key to delete
+        """
+        command = self._build_command('DEL', key)
+        response = self._make_request(command)
+        return response.split(self.delimiter)[0]
+
     def get(self, key):
         """
         GET method
