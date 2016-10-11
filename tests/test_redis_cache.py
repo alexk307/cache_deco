@@ -189,7 +189,7 @@ class TestRedisCache(TestCase):
         redis_cache = RedisCache(self.address, self.port)
 
         # Create a function with the decorator
-        @redis_cache.cache(invalidator=True)
+        @redis_cache.cache()
         def test_function(a):
             return a
 
@@ -197,12 +197,18 @@ class TestRedisCache(TestCase):
             return redis_cache._generate_cache_key(test_function, args, kwargs)
 
         # Call that function
-        function_response, invalidator = test_function(test_param)
+        function_response = test_function(test_param)
         expected_hash = cache_key_for(test_param)
         mock_client_object.assert_called_once_with(self.address, self.port)
         mock_client.get.assert_called_once_with(expected_hash)
         self.assertEqual(mock_client.set.call_count, 0)
         self.assertEqual(function_response, test_param)
+
+        @redis_cache.cache(invalidator=True)
+        def test_function(a):
+            return a
+
+        function_response, invalidator = test_function(test_param)
         self.assertIsNone(invalidator)
 
     @patch('redis_cache.redis_cache.RedisClient')
