@@ -1,33 +1,36 @@
-from redis_client import RedisClient, RedisException
+# from redis_client import RedisClient, RedisException
 import functools
 import pickle
+
+from backends.redis.redis_backend import BackendException
 
 # Default expiration time for a cached object if not given in the decorator
 DEFAULT_EXPIRATION = 60
 
 
 class RedisCache(object):
-    def __init__(self, address, port):
+    def __init__(self, address, port, client):
         self.address = address
         self.port = port
-        self.redis_client = RedisClient(self.address, self.port)
+        self.backend = client(self.address, self.port)
 
     def cache(self, **options):
         """
         Cache decorator
         """
         return_invalidator = 'invalidator' in options
+
         def cache_inside(fn, **kwargs):
             @functools.wraps(fn)
             def wrapper(*args, **kwargs):
                 fn_hash = self._generate_cache_key(fn, args, kwargs, **options)
                 try:
-                    cache_request = self.redis_client.get(fn_hash)
+                    cache_request = self.backend.get_cache(fn_hash)
                     if cache_request is '':
                         # Cache miss
                         ret = fn(*args, **kwargs)
                         pickled_ret = pickle.dumps(ret)
-                        self.redis_client.setex(
+                        self.backend.set_cache_and_expire(
                             fn_hash, pickled_ret, options.get(
                                 'expiration', DEFAULT_EXPIRATION)
                         )
@@ -39,7 +42,7 @@ class RedisCache(object):
                                 self.invalidate_cache, fn_hash)
                         else:
                             return cache_hit
-                except RedisException:
+                except BackendException:
                     # If Redis fails, just execute the function as normal
                     if return_invalidator:
                         return fn(*args, **kwargs), None
@@ -59,7 +62,7 @@ class RedisCache(object):
         the cache
         :param cache_key: The cache key to invalidate
         """
-        self.redis_client.delete(cache_key)
+        self.backend.invalidate_key(cache_key)
 
     def _default_signature_generator(*args, **kwargs):
         """

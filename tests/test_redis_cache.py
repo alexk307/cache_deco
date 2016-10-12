@@ -1,7 +1,8 @@
 from redis_cache.redis_cache import \
-    RedisCache, RedisException, DEFAULT_EXPIRATION
+    RedisCache, DEFAULT_EXPIRATION
+from backends.backend_base import Backend, BackendException
 from unittest import TestCase
-from mock import Mock, patch
+from mock import Mock
 from inputs import SimpleObject
 import collections
 import pickle
@@ -16,16 +17,15 @@ class TestRedisCache(TestCase):
         self.address = '10.10.10.10'
         self.port = 2345
 
-    @patch('redis_cache.redis_cache.RedisClient')
-    def test_cache_miss(self, mock_client_object):
+    def test_cache_miss(self):
         """
         Tests a cache miss
         """
         mock_client = Mock()
         # Simulates a cache miss
-        mock_client.get.return_value = ''
-        mock_client_object.return_value = mock_client
-        redis_cache = RedisCache(self.address, self.port)
+        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache.backend = mock_client
+        redis_cache.backend.get_cache.return_value = ''
 
         # Create a function with the decorator
         @redis_cache.cache()
@@ -39,22 +39,20 @@ class TestRedisCache(TestCase):
         test_param = 'input'
         function_response = test_function(test_param)
 
-        mock_client_object.assert_called_once_with(self.address, self.port)
         expected_hash = cache_key_for(test_param)
-        mock_client.get.assert_called_once_with(expected_hash)
-        mock_client.setex.assert_called_once_with(
+        mock_client.get_cache.assert_called_once_with(expected_hash)
+        mock_client.set_cache_and_expire.assert_called_once_with(
             expected_hash, pickle.dumps(test_param), DEFAULT_EXPIRATION)
 
-    @patch('redis_cache.redis_cache.RedisClient')
-    def test_cache_miss_kwargs(self, mock_client_object):
+    def test_cache_miss_kwargs(self):
         """
         Tests a cache miss against a function with kwargs
         """
         mock_client = Mock()
         # Simulates a cache miss
-        mock_client.get.return_value = ''
-        mock_client_object.return_value = mock_client
-        redis_cache = RedisCache(self.address, self.port)
+        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache.backend = mock_client
+        redis_cache.backend.get_cache.return_value = ''
 
         # Create a function with the decorator
         @redis_cache.cache(invalidator=True)
@@ -72,18 +70,16 @@ class TestRedisCache(TestCase):
         function_response, invalidator \
             = test_function(test_a, test_b, c=test_c, d=test_d)
 
-        mock_client_object.assert_called_once_with(self.address, self.port)
         expected_hash = cache_key_for(test_a, test_b, c=test_c, d=test_d)
-        mock_client.get.assert_called_once_with(expected_hash)
-        mock_client.setex.assert_called_once_with(
+        redis_cache.backend.get_cache.assert_called_once_with(expected_hash)
+        redis_cache.backend.set_cache_and_expire.assert_called_once_with(
             expected_hash, pickle.dumps(test_a), DEFAULT_EXPIRATION)
 
         # Call the cache invalidator
         invalidator()
-        mock_client.delete.assert_called_once_with(expected_hash)
+        mock_client.invalidate_key.assert_called_once_with(expected_hash)
 
-    @patch('redis_cache.redis_cache.RedisClient')
-    def test_cache_miss_expiration(self, mock_client_object):
+    def test_cache_miss_expiration(self):
         """
         Tests a cache miss with an expiration given
         """
@@ -91,9 +87,9 @@ class TestRedisCache(TestCase):
         ttl = 100
         mock_client = Mock()
         # Simulates a cache hit
-        mock_client.get.return_value = ''
-        mock_client_object.return_value = mock_client
-        redis_cache = RedisCache(self.address, self.port)
+        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache.backend = mock_client
+        redis_cache.backend.get_cache.return_value = ''
 
         # Create a function with the decorator
         @redis_cache.cache(expiration=ttl)
@@ -106,23 +102,21 @@ class TestRedisCache(TestCase):
         # Call that function
         function_response = test_function(test_param)
         expected_hash = cache_key_for(test_param)
-        mock_client_object.assert_called_once_with(self.address, self.port)
-        mock_client.get.assert_called_once_with(expected_hash)
-        mock_client.setex.assert_called_once_with(
+        redis_cache.backend.get_cache.assert_called_once_with(expected_hash)
+        redis_cache.backend.set_cache_and_expire.assert_called_once_with(
             expected_hash, pickle.dumps(test_param), ttl)
-        self.assertEqual(mock_client.set.call_count, 0)
+        self.assertEqual(redis_cache.backend.set_cache.call_count, 0)
 
-    @patch('redis_cache.redis_cache.RedisClient')
-    def test_cache_hit(self, mock_client_object):
+    def test_cache_hit(self):
         """
         Tests a cache hit
         """
         test_param = 'cache hit test'
         mock_client = Mock()
         # Simulates a cache hit
-        mock_client.get.return_value = pickle.dumps(test_param)
-        mock_client_object.return_value = mock_client
-        redis_cache = RedisCache(self.address, self.port)
+        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache.backend = mock_client
+        redis_cache.backend.get_cache.return_value = pickle.dumps(test_param)
 
         # Create a function with the decorator
         @redis_cache.cache()
@@ -135,22 +129,20 @@ class TestRedisCache(TestCase):
         # Call that function
         function_response = test_function(test_param)
         expected_hash = cache_key_for(test_param)
-        mock_client_object.assert_called_once_with(self.address, self.port)
-        mock_client.get.assert_called_once_with(expected_hash)
-        self.assertEqual(mock_client.set.call_count, 0)
+        redis_cache.backend.get_cache.assert_called_once_with(expected_hash)
+        self.assertEqual(redis_cache.backend.set_cache.call_count, 0)
         self.assertEqual(function_response, test_param)
 
-    @patch('redis_cache.redis_cache.RedisClient')
-    def test_cache_hit_invalidate(self, mock_client_object):
+    def test_cache_hit_invalidate(self):
         """
         Tests a cache hit with invalidation
         """
         test_param = 'cache hit test'
         mock_client = Mock()
         # Simulates a cache hit
-        mock_client.get.return_value = pickle.dumps(test_param)
-        mock_client_object.return_value = mock_client
-        redis_cache = RedisCache(self.address, self.port)
+        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache.backend = mock_client
+        redis_cache.backend.get_cache.return_value = pickle.dumps(test_param)
 
         # Create a function with the decorator and invalidator param
         @redis_cache.cache(invalidator=True)
@@ -163,9 +155,8 @@ class TestRedisCache(TestCase):
         # Call that function
         function_response, invalidator = test_function(test_param)
         expected_hash = cache_key_for(test_param)
-        mock_client_object.assert_called_once_with(self.address, self.port)
-        mock_client.get.assert_called_once_with(expected_hash)
-        self.assertEqual(mock_client.set.call_count, 0)
+        redis_cache.backend.get_cache.assert_called_once_with(expected_hash)
+        self.assertEqual(redis_cache.backend.set_cache.call_count, 0)
         self.assertEqual(function_response, test_param)
 
         # Invalidator should be callable
@@ -174,19 +165,18 @@ class TestRedisCache(TestCase):
         # Invalidate the cache
         invalidator()
         # Cache entry should have been deleted
-        mock_client.delete.assert_called_once_with(expected_hash)
+        redis_cache.backend.invalidate_key.assert_called_once_with(expected_hash)
 
-    @patch('redis_cache.redis_cache.RedisClient')
-    def test_redis_failure(self, mock_client_object):
+    def test_redis_failure(self):
         """
         Tests that the function gets ran as expected when Redis fails
         """
         test_param = 'cache hit test'
         mock_client = Mock()
         # Simulates a cache hit
-        mock_client.get.side_effect = RedisException
-        mock_client_object.return_value = mock_client
-        redis_cache = RedisCache(self.address, self.port)
+        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache.backend = mock_client
+        redis_cache.backend.get_cache.side_effect = BackendException
 
         # Create a function with the decorator
         @redis_cache.cache()
@@ -199,9 +189,8 @@ class TestRedisCache(TestCase):
         # Call that function
         function_response = test_function(test_param)
         expected_hash = cache_key_for(test_param)
-        mock_client_object.assert_called_once_with(self.address, self.port)
-        mock_client.get.assert_called_once_with(expected_hash)
-        self.assertEqual(mock_client.set.call_count, 0)
+        redis_cache.backend.get_cache.assert_called_once_with(expected_hash)
+        self.assertEqual(redis_cache.backend.set_cache.call_count, 0)
         self.assertEqual(function_response, test_param)
 
         @redis_cache.cache(invalidator=True)
@@ -211,17 +200,16 @@ class TestRedisCache(TestCase):
         function_response, invalidator = test_function(test_param)
         self.assertIsNone(invalidator)
 
-    @patch('redis_cache.redis_cache.RedisClient')
-    def test_cache_custom_signature(self, mock_client_object):
+    def test_cache_custom_signature(self):
         """
         Tests a cache hit with custom signature
         """
         test_param = 'cache hit test'
         mock_client = Mock()
         # Simulates a cache hit
-        mock_client.get.return_value = pickle.dumps(test_param)
-        mock_client_object.return_value = mock_client
-        redis_cache = RedisCache(self.address, self.port)
+        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache.backend = mock_client
+        redis_cache.backend.get_cache.return_value = pickle.dumps(test_param)
 
         def test_signature_builder(*args, **kwargs):
             return "test"
@@ -239,9 +227,8 @@ class TestRedisCache(TestCase):
         # Call that function
         function_response = test_function(test_param)
         expected_hash = cache_key_for(test_param)
-        mock_client_object.assert_called_once_with(self.address, self.port)
-        mock_client.get.assert_called_once_with(expected_hash)
-        self.assertEqual(mock_client.set.call_count, 0)
+        redis_cache.backend.get_cache.assert_called_once_with(expected_hash)
+        self.assertEqual(redis_cache.backend.set_cache.call_count, 0)
         self.assertEqual(function_response, test_param)
 
         # Test that the signature_generator must be callable
@@ -252,16 +239,15 @@ class TestRedisCache(TestCase):
         with self.assertRaises(TypeError):
             test_function_not_callable(test_param)
 
-    @patch('redis_cache.redis_cache.RedisClient')
-    def test_simple_object_pickle(self, mock_client_object):
+    def test_simple_object_pickle(self):
         """
         Tests caching of a simple Python object with pickling
         """
         mock_client = Mock()
         # Simulates a cache miss
-        mock_client.get.return_value = ''
-        mock_client_object.return_value = mock_client
-        redis_cache = RedisCache(self.address, self.port)
+        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache.backend = mock_client
+        redis_cache.backend.get_cache.return_value = ''
 
         # Create a function with the decorator
         simple_obj = SimpleObject('test', 42)
@@ -278,28 +264,26 @@ class TestRedisCache(TestCase):
         function_response = test_function(test_param)
         self.assertEqual(function_response, simple_obj)
 
-        mock_client_object.assert_called_once_with(self.address, self.port)
         expected_hash = cache_key_for(test_param)
-        mock_client.get.assert_called_once_with(expected_hash)
-        mock_client.setex.assert_called_once_with(
+        redis_cache.backend.get_cache.assert_called_once_with(expected_hash)
+        redis_cache.backend.set_cache_and_expire.assert_called_once_with(
             expected_hash, pickle.dumps(simple_obj), DEFAULT_EXPIRATION)
 
         # Call that function, again, expecting a cache hit
-        mock_client.get.return_value = pickle.dumps(simple_obj)
+        redis_cache.backend.get_cache.return_value = pickle.dumps(simple_obj)
         function_response = test_function(test_param)
         self.assertEqual(function_response, simple_obj)
 
-    @patch('redis_cache.redis_cache.RedisClient')
-    def test_simple_object(self, mock_client_object):
+    def test_simple_object(self):
         """
         Tests that the cache uses an object's __str__ method to generate
         the signature of an object if available
         """
         mock_client = Mock()
         # Simulates a cache miss
-        mock_client.get.return_value = ''
-        mock_client_object.return_value = mock_client
-        redis_cache = RedisCache(self.address, self.port)
+        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache.backend = mock_client
+        redis_cache.backend.get_cache.return_value = ''
 
         class TestClass(object):
             def __init__(self, parameter):
@@ -320,12 +304,10 @@ class TestRedisCache(TestCase):
         param = 'some_param'
         test_class = TestClass(param)
         test_class.cache_this_method()
-        mock_client_object.assert_called_once_with(self.address, self.port)
         expected_hash = cache_key_for(param)
-        mock_client.get.assert_called_once_with(expected_hash)
+        redis_cache.backend.get_cache.assert_called_once_with(expected_hash)
 
-    @patch('redis_cache.redis_cache.RedisClient')
-    def test_cache_on_class_without_str(self, mock_client_object):
+    def test_cache_on_class_without_str(self):
         """
         Tests that the cache gets populated when invoking a method that takes a
         primitive type as argument on an object that does not implement a custom
@@ -333,8 +315,8 @@ class TestRedisCache(TestCase):
         """
 
         mock_client = Mock()
-        mock_client_object.return_value = mock_client
-        redis_cache = RedisCache(self.address, self.port)
+        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache.backend = mock_client
 
         class TestClass(object):
             def __init__(self):
@@ -351,12 +333,12 @@ class TestRedisCache(TestCase):
         for argument in primitive_argument, complex_argument:
             # on the first call, the cache is empty
             instance = TestClass()
-            mock_client.get.return_value = ''
+            redis_cache.backend.get_cache.return_value = ''
             instance1_return1 = instance.echo(argument)
 
             # after the first call, the cache is set, i.e. all the subsequent
             # calls will return the previously computed value from cache
-            mock_client.get.return_value = pickle.dumps(argument)
+            redis_cache.backend.get_cache.return_value = pickle.dumps(argument)
             instance1_return2 = instance.echo(argument)
             instance1_return3 = instance.echo(argument)
             self.assertEqual(instance1_return1, argument)
@@ -373,8 +355,7 @@ class TestRedisCache(TestCase):
             self.assertEqual(instance2_return2, argument)
             self.assertEqual(equivalent_instance.call_count[argument], 0)
 
-    @patch('redis_cache.redis_cache.RedisClient')
-    def test_cache_on_stateful_class_without_str(self, mock_client_object):
+    def test_cache_on_stateful_class_without_str(self):
         """
         Tests that the cache gets populated when invoking a method on an object
         that is stateful and that doesn't implement a custom __str__ method.
@@ -385,8 +366,8 @@ class TestRedisCache(TestCase):
         values for the previous state of the object.
         """
         mock_client = Mock()
-        mock_client_object.return_value = mock_client
-        redis_cache = RedisCache(self.address, self.port)
+        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache.backend = mock_client
 
         class TestClass(object):
             def __init__(self, state=None):
@@ -411,7 +392,7 @@ class TestRedisCache(TestCase):
                 return pickle.dumps(state2)
             raise ValueError('called cache for hash: {}'.format(cache_key))
 
-        mock_client.get.side_effect = cache_get
+        redis_cache.backend.get_cache.side_effect = cache_get
 
         # call the object in some initial state
         stateful_instance = TestClass()

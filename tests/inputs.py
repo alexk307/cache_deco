@@ -1,5 +1,3 @@
-from redis_cache.redis_cache import RedisCache
-
 class SimpleObject(object):
 
     def __init__(self, string, number):

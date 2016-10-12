@@ -66,6 +66,7 @@ class TestRedisClient(TestCase):
         expected_value = 'something that was cached'
         mock_socket = Mock()
         mock_sock_lib.socket.return_value = mock_socket
+
         def socket_recv_side_effect(*args, **kwargs):
             if self.recv_count == 0:
                 self.recv_count += 1
