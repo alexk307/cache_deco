@@ -1,5 +1,4 @@
-from redis_cache.redis_cache import \
-    RedisCache, DEFAULT_EXPIRATION
+from redis_cache import RedisCache, DEFAULT_EXPIRATION
 from backends.backend_base import Backend, BackendException
 from unittest import TestCase
 from mock import Mock
@@ -23,7 +22,7 @@ class TestRedisCache(TestCase):
         """
         mock_client = Mock()
         # Simulates a cache miss
-        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache = RedisCache(Backend())
         redis_cache.backend = mock_client
         redis_cache.backend.get_cache.return_value = ''
 
@@ -50,7 +49,7 @@ class TestRedisCache(TestCase):
         """
         mock_client = Mock()
         # Simulates a cache miss
-        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache = RedisCache(Backend())
         redis_cache.backend = mock_client
         redis_cache.backend.get_cache.return_value = ''
 
@@ -87,7 +86,7 @@ class TestRedisCache(TestCase):
         ttl = 100
         mock_client = Mock()
         # Simulates a cache hit
-        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache = RedisCache(Backend())
         redis_cache.backend = mock_client
         redis_cache.backend.get_cache.return_value = ''
 
@@ -114,7 +113,7 @@ class TestRedisCache(TestCase):
         test_param = 'cache hit test'
         mock_client = Mock()
         # Simulates a cache hit
-        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache = RedisCache(Backend())
         redis_cache.backend = mock_client
         redis_cache.backend.get_cache.return_value = pickle.dumps(test_param)
 
@@ -140,7 +139,7 @@ class TestRedisCache(TestCase):
         test_param = 'cache hit test'
         mock_client = Mock()
         # Simulates a cache hit
-        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache = RedisCache(Backend())
         redis_cache.backend = mock_client
         redis_cache.backend.get_cache.return_value = pickle.dumps(test_param)
 
@@ -174,7 +173,7 @@ class TestRedisCache(TestCase):
         test_param = 'cache hit test'
         mock_client = Mock()
         # Simulates a cache hit
-        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache = RedisCache(Backend())
         redis_cache.backend = mock_client
         redis_cache.backend.get_cache.side_effect = BackendException
 
@@ -207,7 +206,7 @@ class TestRedisCache(TestCase):
         test_param = 'cache hit test'
         mock_client = Mock()
         # Simulates a cache hit
-        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache = RedisCache(Backend())
         redis_cache.backend = mock_client
         redis_cache.backend.get_cache.return_value = pickle.dumps(test_param)
 
@@ -245,7 +244,7 @@ class TestRedisCache(TestCase):
         """
         mock_client = Mock()
         # Simulates a cache miss
-        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache = RedisCache(Backend())
         redis_cache.backend = mock_client
         redis_cache.backend.get_cache.return_value = ''
 
@@ -281,7 +280,7 @@ class TestRedisCache(TestCase):
         """
         mock_client = Mock()
         # Simulates a cache miss
-        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache = RedisCache(Backend())
         redis_cache.backend = mock_client
         redis_cache.backend.get_cache.return_value = ''
 
@@ -315,7 +314,7 @@ class TestRedisCache(TestCase):
         """
 
         mock_client = Mock()
-        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache = RedisCache(Backend())
         redis_cache.backend = mock_client
 
         class TestClass(object):
@@ -366,7 +365,7 @@ class TestRedisCache(TestCase):
         values for the previous state of the object.
         """
         mock_client = Mock()
-        redis_cache = RedisCache(self.address, self.port, Backend)
+        redis_cache = RedisCache(Backend())
         redis_cache.backend = mock_client
 
         class TestClass(object):
