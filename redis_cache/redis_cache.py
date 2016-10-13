@@ -18,7 +18,8 @@ class RedisCache(object):
         """
         Cache decorator
         """
-        return_invalidator = 'invalidator' in options
+        return_invalidator = options.get('invalidator', False) is True
+
         def cache_inside(fn, **kwargs):
             @functools.wraps(fn)
             def wrapper(*args, **kwargs):
