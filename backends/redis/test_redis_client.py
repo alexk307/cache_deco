@@ -1,4 +1,4 @@
-from redis_cache.redis_client import RedisClient
+from backends.redis.redis_backend import RedisBackend
 from unittest import TestCase
 from mock import Mock, patch
 from random import randint
@@ -6,15 +6,15 @@ from random import randint
 
 class TestRedisClient(TestCase):
     """
-    Test cases for redis_client.py
+    Test cases for redis_backend.py
     """
     def setUp(self):
         self.address = '8.8.8.8'
         self.port = 1234
-        self.redis_client = RedisClient(self.address, self.port)
+        self.redis_client = RedisBackend(self.address, self.port)
         self.recv_count = 0
 
-    @patch('redis_cache.redis_client.socket')
+    @patch('backends.redis.redis_backend.socket')
     def test_bad_send(self, mock_sock_lib):
         """
         Tests that an appropriate Exception is raised when sending
@@ -27,7 +27,7 @@ class TestRedisClient(TestCase):
         mock_socket.send.side_effect = Exception(mock_error_message)
 
         with self.assertRaises(Exception):
-            self.redis_client.get(key)
+            self.redis_client.get_cache(key)
 
         self.assertEqual(mock_socket.recv.call_count, 0)
         mock_socket.connect.assert_called_once_with(
@@ -36,7 +36,7 @@ class TestRedisClient(TestCase):
             '*2\r\n$3\r\nGET\r\n$%s\r\n%s\r\n' % (len(key), key))
         mock_socket.close.assert_called_once_with()
 
-    @patch('redis_cache.redis_client.socket')
+    @patch('backends.redis.redis_backend.socket')
     def test_bad_connection(self, mock_sock_lib):
         """
         Tests that an appropriate Exception is raised when connecting to
@@ -49,7 +49,7 @@ class TestRedisClient(TestCase):
         mock_socket.connect.side_effect = Exception(mock_error_message)
 
         with self.assertRaises(Exception):
-            self.redis_client.get(key)
+            self.redis_client.get_cache(key)
 
         self.assertEqual(mock_socket.recv.call_count, 0)
         mock_socket.connect.assert_called_once_with(
@@ -57,7 +57,7 @@ class TestRedisClient(TestCase):
         self.assertEqual(mock_socket.send.call_count, 0)
         mock_socket.close.assert_called_once_with()
 
-    @patch('redis_cache.redis_client.socket')
+    @patch('backends.redis.redis_backend.socket')
     def test_get(self, mock_sock_lib):
         """
         Tests GET
@@ -75,7 +75,7 @@ class TestRedisClient(TestCase):
                 return ""
         mock_socket.recv.side_effect = socket_recv_side_effect
 
-        cache_response = self.redis_client.get(key)
+        cache_response = self.redis_client.get_cache(key)
 
         self.assertEqual(expected_value, cache_response)
         mock_socket.recv.assert_called_with(self.redis_client.RECV_SIZE)
@@ -86,7 +86,7 @@ class TestRedisClient(TestCase):
             '*2\r\n$3\r\nGET\r\n$%s\r\n%s\r\n' % (len(key), key))
         mock_socket.close.assert_called_once_with()
 
-    @patch('redis_cache.redis_client.socket')
+    @patch('backends.redis.redis_backend.socket')
     def test_get_large_response(self, mock_sock_lib):
         """
         Tests that the full large response is received from Redis
@@ -105,7 +105,7 @@ class TestRedisClient(TestCase):
                 return ""
 
         mock_socket.recv.side_effect = socket_recv_side_effect
-        cache_response = self.redis_client.get(key)
+        cache_response = self.redis_client.get_cache(key)
 
         # self.assertEqual(expected_value, cache_response)
         mock_socket.recv.assert_called_with(self.redis_client.RECV_SIZE)
@@ -116,7 +116,7 @@ class TestRedisClient(TestCase):
             '*2\r\n$3\r\nGET\r\n$%s\r\n%s\r\n' % (len(key), key))
         mock_socket.close.assert_called_once_with()
 
-    @patch('redis_cache.redis_client.socket')
+    @patch('backends.redis.redis_backend.socket')
     def test_set(self, mock_sock_lib):
         """
         Tests SET
@@ -134,7 +134,7 @@ class TestRedisClient(TestCase):
                 return ""
         mock_socket.recv.side_effect = socket_recv_side_effect
 
-        cache_response = self.redis_client.set(key, value)
+        cache_response = self.redis_client.set_cache(key, value)
         self.assertEqual(cache_response, '+OK')
 
         mock_socket.recv.assert_called_with(self.redis_client.RECV_SIZE)
@@ -146,7 +146,7 @@ class TestRedisClient(TestCase):
             (len(key), key, len(value), value))
         mock_socket.close.assert_called_once_with()
 
-    @patch('redis_cache.redis_client.socket')
+    @patch('backends.redis.redis_backend.socket')
     def test_delete(self, mock_sock_lib):
         """
         Tests DELETE
@@ -158,7 +158,7 @@ class TestRedisClient(TestCase):
 
         mock_socket.recv.return_value = ':%s\r\n' % value
 
-        cache_response = self.redis_client.delete(key)
+        cache_response = self.redis_client.invalidate_key(key)
         self.assertEqual(cache_response, ':%s' % value)
 
         mock_socket.recv.assert_called_with(self.redis_client.RECV_SIZE)
@@ -169,7 +169,7 @@ class TestRedisClient(TestCase):
             '*2\r\n$3\r\nDEL\r\n$9\r\n%s\r\n' % key)
         mock_socket.close.assert_called_once_with()
 
-    @patch('redis_cache.redis_client.socket')
+    @patch('backends.redis.redis_backend.socket')
     def test_setex(self, mock_sock_lib):
         """
         Tests SETEX
@@ -188,7 +188,7 @@ class TestRedisClient(TestCase):
                 return ""
         mock_socket.recv.side_effect = socket_recv_side_effect
 
-        cache_response = self.redis_client.setex(key, value, expiration)
+        cache_response = self.redis_client.set_cache_and_expire(key, value, expiration)
         self.assertEqual(cache_response, '+OK')
 
         mock_socket.recv.assert_called_with(self.redis_client.RECV_SIZE)
