@@ -9,7 +9,7 @@ Implements high level function caching to Redis with a decorator
 
 ## Setup
 ```python
-from redis_cache.redis_cache import RedisCache
+from redis_cache import RedisCache
 r = RedisCache('localhost', 6379)
 ```
 
