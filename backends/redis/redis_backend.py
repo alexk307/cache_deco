@@ -1,12 +1,11 @@
+from backends.backend_base import Backend, BackendException
 import socket
 
 
-class RedisClient(object):
-    """
-    Client to communicate with the Redis Server
-    """
+class RedisBackend(Backend):
 
     def __init__(self, address, port):
+        super(RedisBackend, self).__init__()
         self.delimiter = '\r\n'
         self.address = address
         self.port = port
@@ -25,7 +24,7 @@ class RedisClient(object):
             response = self._recv_data(s)
             return response
         except Exception as e:
-            raise RedisException(
+            raise BackendException(
                 'Unable to make request to Redis: %s' % str(e))
         finally:
             s.close()
@@ -49,7 +48,7 @@ class RedisClient(object):
             command_args.extend(['$%s' % len(str(arg)), str(arg)])
         return self.delimiter.join(command_args) + self.delimiter
 
-    def delete(self, key):
+    def invalidate_key(self, key):
         """
         DEL method
         :param key: The key to delete
@@ -58,7 +57,7 @@ class RedisClient(object):
         response = self._make_request(command)
         return response.split(self.delimiter)[0]
 
-    def get(self, key):
+    def get_cache(self, key):
         """
         GET method
         :param key: The key to GET
@@ -67,7 +66,7 @@ class RedisClient(object):
         response = self._make_request(command)
         return response.split(self.delimiter)[1]
 
-    def set(self, key, value, **kwargs):
+    def set_cache(self, key, value, **kwargs):
         """
         SET method
         :param key: The key to SET
@@ -77,7 +76,7 @@ class RedisClient(object):
         response = self._make_request(command)
         return response.split(self.delimiter)[0]
 
-    def setex(self, key, value, expiration):
+    def set_cache_and_expire(self, key, value, expiration):
         """
         SETEX command
         :param key: The key to SET
@@ -88,6 +87,3 @@ class RedisClient(object):
         response = self._make_request(command)
         return response.split(self.delimiter)[0]
 
-
-class RedisException(Exception):
-    pass
