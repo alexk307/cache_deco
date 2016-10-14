@@ -1,13 +1,13 @@
 import functools
 import pickle
 
-from backends.redis.redis_backend import BackendException
+from backends.backend_base import BackendException
 
 # Default expiration time for a cached object if not given in the decorator
 DEFAULT_EXPIRATION = 60
 
 
-class RedisCache(object):
+class Cache(object):
     def __init__(self, client):
         self.backend = client
 
@@ -23,6 +23,7 @@ class RedisCache(object):
                 fn_hash = self._generate_cache_key(fn, args, kwargs, **options)
                 try:
                     cache_request = self.backend.get_cache(fn_hash)
+                    # TODO
                     if cache_request is '':
                         # Cache miss
                         ret = fn(*args, **kwargs)
@@ -40,7 +41,7 @@ class RedisCache(object):
                         else:
                             return cache_hit
                 except BackendException:
-                    # If Redis fails, just execute the function as normal
+                    # If the backend fails, just execute the function as normal
                     if return_invalidator:
                         return fn(*args, **kwargs), None
                     else:
