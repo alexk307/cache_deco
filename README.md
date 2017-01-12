@@ -69,6 +69,8 @@ To invalidate the cached return, just call the invalidator:
 ```python
 invalidator()
 ```
+# Custom Backends
+You can use any backend for the cache by implementing the [base class](https://github.com/alexk307/cache_deco/blob/master/backends/backend_base.py)
 
 # Contributing
 Check for any open issues, or open one yourself! All contributions are appreciated.
