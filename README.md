@@ -1,4 +1,4 @@
-# redis_cache [![Build Status](https://travis-ci.org/alexk307/redis_cache.svg?branch=master)](https://travis-ci.org/alexk307/redis_cache) [![Coverage Status](https://coveralls.io/repos/github/alexk307/redis_cache/badge.svg?branch=master)](https://coveralls.io/github/alexk307/redis_cache?branch=master)
+# cache_deco [![Build Status](https://travis-ci.org/alexk307/redis_cache.svg?branch=master)](https://travis-ci.org/alexk307/redis_cache) [![Coverage Status](https://coveralls.io/repos/github/alexk307/redis_cache/badge.svg?branch=master)](https://coveralls.io/github/alexk307/redis_cache?branch=master)
 
 Implements high level function caching to any backend with a decorator
 
