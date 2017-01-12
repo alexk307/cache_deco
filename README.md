@@ -9,14 +9,16 @@ Implements high level function caching to Redis with a decorator
 
 ## Setup
 ```python
-from redis_cache import RedisCache
-r = RedisCache('localhost', 6379)
+from cache_deco import Cache
+from backends.redis.redis_backend import RedisBackend
+redis = RedisBackend('localhost', 6379)
+c = Cache(redis)
 ```
 
 ## Cache
 
 ```python
-@r.cache()
+@c.cache()
 def my_method(a, b, c):
   return a ** b ** c
 ```
@@ -26,7 +28,7 @@ def my_method(a, b, c):
 
 e.g.
 ```python
-@r.cache(expiration=100)
+@c.cache(expiration=100)
 def my_method():
   ...
 ```
@@ -39,7 +41,7 @@ e.g.
 def sig_gen(*args, **kwargs):
   return "?".join(args)
   
-r.cache(signature_generator=sig_gen)
+@c.cache(signature_generator=sig_gen)
 def my_method():
   ...
 ```
@@ -48,7 +50,7 @@ def my_method():
 
 e.g.
 ```python
-@r.cache(invalidator=True)
+@c.cache(invalidator=True)
 def my_method():
     ...
 ```

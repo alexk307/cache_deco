@@ -4,5 +4,5 @@ python:
 # command to install dependencies
 install: "pip install -r requirements.txt"
 # command to run tests
-script: nosetests --with-coverage --cover-package redis_cache
+script: nosetests --with-coverage --cover-package backends
 after_success: coveralls
