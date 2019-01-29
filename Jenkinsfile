@@ -21,8 +21,11 @@ pipeline {
                 }
             }
             steps {
+                sh 'pip install virtualenv'
+                sh 'virtualenv env'
                 sh 'source env/bin/activate'
-                sh './env/bin/nosetests' 
+                sh 'pip install -r requirements.txt'
+                sh 'nosetests' 
             }
         }
     }
