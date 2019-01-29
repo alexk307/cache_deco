@@ -8,6 +8,7 @@ pipeline {
                 }
             }
             steps {
+                sh 'pip install virtualenv'
                 sh 'virtualenv env'
                 sh 'source env/bin/activate'
             }
