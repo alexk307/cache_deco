@@ -22,7 +22,7 @@ pipeline {
             }
             steps {
                 sh 'source env/bin/activate'
-                sh 'nosetests' 
+                sh './env/bin/nosetests' 
             }
         }
     }
